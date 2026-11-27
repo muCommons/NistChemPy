@@ -2,13 +2,22 @@ name: tests
 
 on:
   push:
+    branches: [main, dev]
   pull_request:
+    branches: [main, dev]
   workflow_dispatch:
     inputs:
       run_online:
         description: Run live NIST Chemistry WebBook integration tests
         required: false
         default: 'false'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   offline:
