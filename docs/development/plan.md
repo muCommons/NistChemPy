@@ -1,293 +1,293 @@
-# NistChemPy и NistChemData — техническое задание на развитие
+# NistChemPy and NistChemData — development specification
 
-**Дата:** 26 ноября 2026 года.  
-**Редакция:** 27 ноября 2026 года — модель веток и финальный этап документации.  
-**Назначение:** основа для одной согласованной разработки в постоянных интеграционных ветках `dev` двух существующих репозиториев, без промежуточных публичных релизов.  
-**Статус:** согласованный рабочий план; Bootstrap в процессе, функциональная реализация ещё не начата. Детальные решения в пределах отдельных этапов остаются предметом их приёмки.
+**Date:** 26 November 2026.  
+**Revision:** 27 November 2026 — branch model and final documentation stage.  
+**Purpose:** a basis for one coordinated development cycle in the permanent integration branches (`dev`) of the two existing repositories, without intermediate public releases.  
+**Status:** approved working plan; bootstrap is in progress, and functional implementation has not yet started. Detailed decisions within each stage remain subject to its acceptance.
 
-## 1. Решение и контекст
+## 1. Decision and context
 
-Развивать существующий NistChemPy: собрать знание HTML-разметки в `parsing/`, расширить извлечение данных и обеспечить проверяемое сохранение их происхождения. Сохранить NistChemData как набор сценариев локальной выгрузки и обработки поверх библиотеки.
+Develop the existing NistChemPy: consolidate knowledge of HTML markup in `parsing/`, extend data extraction, and ensure that provenance is preserved in a verifiable manner. Retain NistChemData as a collection of local retrieval and processing scripts built on the library.
 
-Первым результатом разработки должен стать **каталог всего целевого функционала с синтетическими примерами входов и ожидаемыми результатами**, включая ещё не реализованные разделы. Этот корпус одновременно служит спецификацией, картой покрытия и основанием для последующих задач.
+The first development outcome must be **a catalog of the entire target functionality with synthetic input examples and expected results**, including sections not yet implemented. This corpus serves simultaneously as a specification, coverage map, and basis for subsequent tasks.
 
-Из обсуждения сохраняются четыре цели:
+Four objectives from the discussion are retained:
 
-1. Устойчивый к изменениям оформления и удобный для сопровождения доступ к WebBook.
-2. Широкое покрытие научных данных с обязательными сведениями об источниках и правах.
-3. Воспроизводимое построение собственных локальных наборов через NistChemData.
-4. Подготовка доказательной базы для статьи о программном обеспечении и воспроизводимом извлечении научных данных; предполагаемое направление — JCIM Application Note.
+1. Maintainable access to WebBook that is resilient to changes in page formatting.
+2. Broad coverage of scientific data, with mandatory source and rights information.
+3. Reproducible construction of local datasets through NistChemData.
+4. Preparation of evidence for a paper on software and reproducible scientific data retrieval; the intended publication format is a JCIM Application Note.
 
-Главное ограничение архитектуры: **каждое изменение должно устранять наблюдаемое дублирование, предотвращать конкретную потерю информации или давать необходимую проверку**. Предусматривать расширение нужно там, где каталог уже показывает разные случаи. Универсальный движок для неизвестных будущих источников не требуется.
+The main architectural constraint is that **each change must eliminate observed duplication, prevent a specific loss of information, or provide a necessary check**. Design for extensibility where the catalog already demonstrates distinct cases. A universal engine for unknown future sources is not required.
 
-## 2. Проверенная стартовая точка
+## 2. Verified baseline
 
-Повторный аудит выполнен по следующим состояниям `main`:
+The repeated audit was conducted against the following states of `main`:
 
-| Репозиторий | Коммит | Что уже есть |
+| Repository | Commit | Existing capabilities |
 |---|---|---|
-| NistChemPy | `569c4ed951673ff09183df1fb19a10018e108e14` | Версия 2.0.0; поиск, карточки веществ, MOL 2D/3D, получение четырёх видов JCAMP, GC, dataclass-записи, JSON/JSONL, локальный индекс и CLI |
-| NistChemData | `50f069a835bc9b3a9415b9946d61e4ec5ee22203` | Три загрузчика и четыре обработчика; ZIP, CSV-манифесты, возобновление, поддержка старых архивов, локальный индекс NistChemPy |
+| NistChemPy | `569c4ed951673ff09183df1fb19a10018e108e14` | Version 2.0.0; search, compound pages, 2D/3D MOL, retrieval of four types of JCAMP spectra, GC, dataclass records, JSON/JSONL, local index and CLI |
+| NistChemData | `50f069a835bc9b3a9415b9946d61e4ec5ee22203` | Three download scripts and four processing scripts; ZIP archives, CSV manifests, resumption, legacy archive support, NistChemPy local index |
 
-В NistChemPy уже есть `parsing/` и `records/`. Транспорт, публичные объекты и индексация также организованы отдельно. Разделение следует довести до рабочего контракта, а не создавать заново. Словарь библиотеки содержит 14 семейств данных, но девять из них представлены обнаружением ссылок без специализированного извлечения таблиц. [P1][p1] [P2][p2] [P3][p3]
+NistChemPy already has `parsing/` and `records/`. Transport, public objects, and indexing are also organized separately. This separation should be made into a working contract rather than rebuilt from scratch. The library's mapping contains 14 data families, but nine are represented by link discovery without specialized table extraction. [P1][p1] [P2][p2] [P3][p3]
 
-Офлайн- и сетевые тесты уже разделены: обычный запуск исключает `network`, сетевой CI запускается вручную. В отдельном HTML-корпусе восемь файлов; дополнительные небольшие примеры есть непосредственно в тестах индекса. Это полезная основа, но ещё не представительная спецификация WebBook. [P4][p4] [P5][p5]
+Offline and network tests are already separated: the ordinary test run excludes `network`, and network CI is triggered manually. The dedicated HTML corpus contains eight files; additional small examples are embedded in the indexing tests. This is a useful foundation, but not yet a representative specification of WebBook. [P4][p4] [P5][p5]
 
-### Что повторная проверка добавила к прежнему плану
+### Findings added by the repeated audit
 
-| Наблюдение в коде или источнике | Следствие для ТЗ |
+| Observation in the code or source | Consequence for the specification |
 |---|---|
-| Исправление HTML и BeautifulSoup находятся в `requests.py`; распознавание результатов — частично в `search.py`; поиск спектральных ссылок — в `compound.py` и NistChemData | Перенести конкретные операции с разметкой в библиотечные парсеры; существующие публичные входы делегируют им |
-| Неизвестный HTTP 200 может превратиться в успешный пустой поиск; MOL/JDX принимаются без проверки формата | Отрицательные фикстуры и различение отсутствия данных, сбоя запроса и нераспознанного ответа |
-| GC-парсер захватывает последующие таблицы без ограничения разделом; повторный вызов загрузки дописывает данные | Проверка границ раздела, нескольких таблиц и повторной загрузки |
-| `retrieved_at` предусмотрен, но штатные конвертеры его не заполняют | Фиксировать время получения ресурса один раз и сохранять при экспорте |
-| В NistChemData GC-архив с обозначением raw содержит уже разобранные CSV | Хранить исходные HTML отдельно от производных таблиц для повторного разбора |
-| Архив без строки манифеста может считаться завершённым по наличию части файлов | Исправить возобновление после прерывания первого многокомпонентного скачивания |
-| Индекс после ошибок обогащения записывает `status='complete'`; объединённый build заменяет seeds и очищает накопленный partial | Отдельно учитывать завершение процесса, полноту выбранного объёма и корректность resume |
-| На странице этанола есть страницы продолжения реакций и отдельные страницы измерений за средними значениями; текущий `get_compound_data_refs()` берёт первую ссылку подпункта | В каталог и загрузчики включить необходимые переходы, а не только верхние разделы |
+| HTML correction and BeautifulSoup handling reside in `requests.py`; result recognition partly in `search.py`; spectral link extraction in `compound.py` and NistChemData | Move specific markup operations into library parsers; existing public entry points delegate to them |
+| An unrecognized HTTP 200 response can become a successful empty search; MOL/JDX responses are accepted without format validation | Negative fixtures and a distinction between absent data, failed requests, and unrecognized responses |
+| The GC parser captures subsequent tables without respecting section boundaries; repeated retrieval appends data | Test section boundaries, multiple tables, and repeated retrieval |
+| `retrieved_at` is defined, but the normal record converters do not populate it | Record retrieval time once and preserve it during export |
+| The NistChemData GC archive labeled raw contains already parsed CSV files | Store source HTML separately from derived tables for reparsing |
+| An archive without a manifest row can be considered complete when only some files are present | Fix resumption after interruption of the first multi-resource download |
+| The index writes `status='complete'` after enrichment errors; the combined build replaces seeds and clears accumulated partial results | Track process completion, completeness of the selected scope, and correct resumption separately |
+| The ethanol page has reaction continuation pages and separate measurement pages behind average values; the current `get_compound_data_refs()` takes the first link of a subsection | Include the necessary navigation paths in the catalog and retrieval operations, not just top-level sections |
 
-Основания: [P2][p2] [P3][p3] [P6][p6] [P7][p7] [P8][p8] [D1][d1] [D2][d2] [D3][d3] [W2][w2] [W3][w3].
+Evidence: [P2][p2] [P3][p3] [P6][p6] [P7][p7] [P8][p8] [D1][d1] [D2][d2] [D3][d3] [W2][w2] [W3][w3].
 
-Это статически установленные свойства реализации и наблюдения нескольких страниц, не утверждение о частоте сбоев на всём WebBook. Полный pytest в этом аудите не выполнялся: в рабочем Python отсутствует `requests`. Исходный результат тестов нужно зафиксировать в начале разработки.
+These are properties established by static inspection of the implementation and observations of several pages, not claims about the frequency of failures across WebBook. The full pytest suite was not executed during this audit because `requests` was missing from the working Python environment. Establish the baseline test result at the beginning of development.
 
-## 3. Цель ветки и границы покрытия
+## 3. Development outcome and coverage boundaries
 
-**Результат ветки:** библиотека и согласованные сценарии, которые извлекают весь обязательный объём из зафиксированной матрицы WebBook, сохраняют научный контекст и происхождение, проверяются без сети и позволяют повторно обработать сохранённые локальные источники.
+**Development outcome:** a library and coordinated scripts that extract the entire mandatory scope from the established WebBook coverage matrix, preserve scientific context and provenance, can be tested without network access, and allow saved local sources to be reprocessed.
 
-**Практический конечный результат проекта:** собственная локальная выгрузка максимально полного обнаруженного объёма, отчёт о покрытии и пробелах, воспроизводимые примеры для исследований и статьи. Завершённость разработки, завершённость конкретной выгрузки и готовность рукописи учитываются отдельно.
+**Practical project outcome:** a local retrieval covering as much of the discovered scope as possible, a report on coverage and gaps, and reproducible examples for research and the paper. Track completion of development, completion of a particular retrieval, and manuscript readiness separately.
 
-### Обязательный объём разработки
+### Mandatory development scope
 
-| Группа | Что должно быть представлено в каталоге и поддержано к завершению ветки |
+| Group | What must be represented in the catalog and supported by the end of the development cycle |
 |---|---|
-| Идентификация и навигация | Карточки, существующие виды поиска, пустая/усечённая выдача, formula browser и sitemap; стереоизомеры и изотопологи как связанные записи |
-| Структуры | MOL 2D/3D, ссылки и указание происхождения/вычисленного характера структуры, если оно есть в источнике |
-| Спектры | IR, THz, MS, UV/Vis: списки, отдельные спектры, исходные файлы, метаданные, ссылки на дополнительные изображения |
-| GC | Все обнаруженные крупноформатные таблицы, условия измерения, классификация, комментарии и ссылки |
-| Термохимия | Газовая и конденсированная фазы: отдельные измерения, серии, рекомендованные/усреднённые значения и их отличия, параметры опубликованных зависимостей |
-| Фазовые переходы и Henry | Величины, температуры/диапазоны, единицы, условия и коэффициенты зависимостей |
-| Реакции и ионы | Термохимия реакций, ионная энергетика, кластеризация: участники, стехиометрия/заряд и фазовые обозначения в доступной структурированной форме, связанные измерения |
-| Энергетические уровни и двухатомные молекулы | Таблицы, обозначения состояний и переходов, константы, единицы, примечания и литература |
-| Общие для всех групп сведения | Источники, компиляторы, библиография, сноски, owner/origin/collection, указания о правах и неизвестные значения |
+| Identification and navigation | Compound pages, existing search types, empty/truncated results, formula browser and sitemap; stereoisomers and isotopologues as related records |
+| Structures | 2D/3D MOL, links, and information about the provenance or computed nature of a structure where provided by the source |
+| Spectra | IR, THz, MS, UV/Vis: listings, individual spectra, original files, metadata, links to additional images |
+| GC | All identified large-format tables, measurement conditions, classification, comments and references |
+| Thermochemistry | Gas and condensed phases: individual measurements, series, recommended/average values and their distinctions, parameters of published correlations |
+| Phase transitions and Henry's law | Quantities, temperatures/ranges, units, conditions and correlation coefficients |
+| Reactions and ions | Reaction thermochemistry, ion energetics and clustering: participants, stoichiometry/charge and phase designations in an available structured form, associated measurements |
+| Energy levels and diatomic molecules | Tables, state and transition designations, constants, units, notes and literature |
+| Information common to all groups | Sources, compilers, bibliography, footnotes, owner/origin/collection, rights notices and unknown values |
 
-Здесь 14 кодов текущей библиотеки — начальная контрольная сумма списка семейств, а не доказательство полноты сайта. В A0 каждое семейство разбивается на **реально различающиеся варианты**. Учитываются несколько разделов на одной странице, продолжения, ссылки на индивидуальные значения и дополнительные конечные ресурсы. [P1][p1] [W1][w1] [W2][w2] [W3][w3]
+The 14 codes in the current library are an initial cross-check of the list of families, not proof of complete coverage of the site. In A0, each family is divided into **genuinely distinct variants**. Account for multiple sections on a single page, continuations, links to individual values, and additional final resources. [P1][p1] [W1][w1] [W2][w2] [W3][w3]
 
-Для спектров обязательны сохранение исходного JCAMP и полного доступного набора метаданных, а также корректная работа существующих обработчиков IR/MS. Численные представления других вариантов добавляются, если нужны для согласованного выхода. Неподдержанный способ кодирования сохраняется и отмечается; нельзя объявлять универсальную поддержку JCAMP на основании нескольких примеров.
+For spectra, preservation of the original JCAMP and the complete available metadata is mandatory, as is correct operation of the existing IR/MS processors. Numerical representations of other variants are added where needed for the agreed output. Unsupported encodings are preserved and flagged; a few examples do not justify claiming universal JCAMP support.
 
-### Что явно не включается в эту ветку
+### Explicit exclusions from this development cycle
 
-Предлагается ограничить обязательную реализацию данными карточек веществ и необходимой навигацией. Инвентаризировать, но отложить отдельные расчётные сервисы Fluid Systems и Group Additivity, специальные экспериментальные коллекции и самостоятельные новые поисковые интерфейсы, не нужные для этой выгрузки. Это **уточнение объёма относительно расплывчатого «всего API»**. Fluid Systems, например, требует выбора режима, сетки условий, единиц и стандартного состояния; это отдельная задача. [W4][w4]
+Limit mandatory implementation to compound-page data and the navigation needed to retrieve it. Inventory but defer the separate Fluid Systems and Group Additivity computational services, specialized experimental collections, and independent new search interfaces not needed for this retrieval. This is **a scope clarification of the ambiguous goal of covering the entire API**. Fluid Systems, for example, requires selecting a mode, a grid of conditions, units, and a standard state; it is a separate task. [W4][w4]
 
-Также вне объёма: доступ к подписным базам по внешним ссылкам, OCR/оцифровка картинок, повторение вычислительных моделей NIST, автоматическая научная переоценка измерений, ML-бенчмарк, веб-сервис и публичная раздача полного полученного массива. Ссылки и доступные описания таких ресурсов сохраняются.
+Also out of scope: access to subscription databases via external links, OCR/digitization of images, reproducing NIST's computational models, automated scientific reassessment of measurements, an ML benchmark, a web service, and public redistribution of the full retrieved dataset. Preserve links to and available descriptions of these resources.
 
-Строку обязательного каталога нельзя закрыть как реализованную только потому, что исходный HTML сохранён. Для заранее предусмотренных полей необходима проверенная структурированная экстракция. Неизвестный вариант в дальнейшем должен быть виден как пробел; его нельзя молча исключить из знаменателя покрытия.
+A mandatory catalog entry cannot be closed as implemented merely because its source HTML is saved. The agreed fields require verified structured extraction. Any subsequently encountered unknown variant must remain visible as a coverage gap; it cannot silently be excluded from the denominator.
 
-## 4. A0: сначала спецификация всего объёма
+## 4. A0: specify the entire scope first
 
-A0 проходит **по всем обязательным группам**, а не только по текущим возможностям NistChemPy.
+A0 covers **all mandatory groups**, not only the current capabilities of NistChemPy.
 
-Для каждого случая фиксируются:
+For each case, record:
 
-- устойчивый `case_id`, семейство и значимый вариант;
-- URL наблюдавшегося источника, дата проверки и какие структурные признаки он демонстрирует;
-- синтетические входы: HTML, JCAMP/MOL, а при многошаговой загрузке — связанный набор ответов;
-- ожидаемые значения, единицы, связи с источниками, права и ожидаемый исход при ошибке;
-- текущий статус реализации, тест и задача разработки.
+- a stable `case_id`, family, and significant variant;
+- the URL of the observed source, date of inspection, and structural features it demonstrates;
+- synthetic inputs: HTML, JCAMP/MOL, and a linked set of responses for multistep retrieval;
+- expected values, units, source associations, rights, and expected failure behavior;
+- current implementation status, test, and development task.
 
-Достаточно одного небольшого машинно-читаемого каталога, например `tests/fixtures/cases.json`, самих файлов и ожидаемых JSON. Отдельная база, генератор сайтов и язык описания тестов не нужны. Обзорная таблица документации должна опираться на этот каталог.
+One small machine-readable catalog, such as `tests/fixtures/cases.json`, the fixture files themselves, and expected JSON are sufficient. No separate database, website generator, or test description language is needed. The documentation's overview table should be based on this catalog.
 
-В A0 входят и сквозные случаи: синтетический индекс, современный и legacy-манифест, небольшой ZIP, прерывание после первого из двух ресурсов, продолжение, экспорт и повторная обработка. Их входы и ожидаемые результаты готовятся сразу; код и исполняемые проверки сценариев могут появляться в A1–A3. Не создавать для этого отдельный язык сценариев: обычных фикстур pytest достаточно.
+A0 also includes end-to-end cases: a synthetic index, current and legacy manifests, a small ZIP archive, interruption after the first of two resources, resumption, export, and reprocessing. Prepare their inputs and expected results at the start; the code and executable scenario tests may be introduced in A1–A3. Do not introduce a separate scenario language for this purpose; ordinary pytest fixtures are sufficient.
 
-**Порядок:** изучить реальный пример → независимо написать минимальный синтетический аналог → вручную проверить ожидаемый результат → добавить в матрицу. Не получать эталон механически из текущего парсера.
+**Sequence:** inspect a real example → independently write a minimal synthetic equivalent → manually verify the expected result → add it to the matrix. Do not generate the expected result mechanically from the current parser.
 
-Dummies воспроизводят значимые структуры и связи, а содержат собственные названия, числа, ссылки и тексты. Не копировать страницы целиком с заменой нескольких значений. Не включать реальные наборы измерений, длинные примечания, рисунки и фирменное оформление. Авторство и условия распространения синтетического корпуса указываются явно.
+Dummy pages reproduce significant structures and associations but contain original names, numbers, references, and text. Do not copy entire pages while replacing only a few values. Do not include real measurement datasets, lengthy source notes, images, or branding. Explicitly state the authorship and distribution terms of the synthetic corpus.
 
-Минимум на различающийся вариант: рабочий пример и ожидаемый результат. На каждое семейство — применимые случаи отсутствия необязательных сведений и повреждения обязательной структуры. Общие случаи — пробелы, переносы, вложенные теги, порядок атрибутов — проверяются параметризацией без сотен копий. Отдельно необходимы несколько источников/таблиц, числовые квалификаторы, `rowspan/colspan`, надстрочные/подстрочные обозначения, обе системы единиц и переходы между страницами там, где это наблюдается.
+The minimum for each distinct variant is a valid example and its expected result. Each family must also include applicable cases of missing optional information and damaged mandatory structure. Cover common variations—whitespace, line breaks, nested tags, attribute order—through parameterization without hundreds of copies. Include multiple sources/tables, numerical qualifiers, `rowspan/colspan`, superscripts/subscripts, both unit systems, and navigation between pages where observed.
 
-**Выход A0:** весь согласованный каталог и представительный корпус, а не исчерпывающая модель каждой страницы сайта. Файлы и ожидаемые структуры проверяются сразу. Парсерные тесты будущей возможности активируются вместе с реализацией; `planned` остаётся видимым в отчёте, без массового `xfail`. В конце ветки обязательных `planned` быть не должно.
+**A0 deliverable:** the entire agreed catalog and a representative corpus, not an exhaustive model of every page on the site. Validate the fixture files and expected structures immediately. Activate parser tests for future capabilities when their implementation is introduced; keep `planned` cases visible in the report without widespread use of `xfail`. No mandatory `planned` cases may remain at the end of development.
 
-Минимальные поля происхождения из раздела 6 проектируются уже здесь. Детальная раскладка численных полей каждого семейства закрепляется его ожидаемыми результатами; отдельный класс Python на каждую величину не требуется.
+Design the minimum provenance fields from Section 6 at this stage. The detailed numerical field layout of each family is established by its expected results; a separate Python class for each quantity is not required.
 
-## 5. Архитектура с минимальным изменением существующего кода
+## 5. Architecture with minimal changes to existing code
 
-| Существующая часть | Ответственность после работы |
+| Existing component | Responsibility after the work |
 |---|---|
-| `requests.py` | HTTP, конфигурация, ограниченные повторные попытки, исходный ответ и время получения |
-| `parsing/` | Распознавание разметки, границы разделов, ссылки, таблицы, библиография и преобразование в согласованные структуры; без HTTP и записи файлов |
-| `compound.py`, `search.py` | Публичные операции, выбор следующих запросов, сбор результата и обновление объектов |
-| `records/` | Существующие типы записей, небольшой общий блок происхождения и необходимые новые табличные записи; JSON/JSONL |
-| `indexing/`, CLI | Поиск кандидатов, обогащение и локальный индекс; честный учёт выбранного объёма, ошибок и возобновления |
-| NistChemData `scripts/` | Выбор объёма, последовательная выгрузка, архивы, возобновление, производные таблицы и отчёт запуска |
+| `requests.py` | HTTP, configuration, bounded retries, original response and retrieval time |
+| `parsing/` | Markup recognition, section boundaries, links, tables, bibliography and conversion to agreed structures; no HTTP or file writing |
+| `compound.py`, `search.py` | Public operations, selection of subsequent requests, result assembly and object updates |
+| `records/` | Existing record types, a small common provenance component and necessary new table records; JSON/JSONL |
+| `indexing/`, CLI | Candidate discovery, enrichment and local index; accurate accounting of selected scope, errors and resumption |
+| NistChemData `scripts/` | Scope selection, sequential retrieval, archives, resumption, derived tables and run report |
 
-Парсер получает текст/DOM и URL страницы; он не должен требовать клиента, живого `requests.Response`, глобального состояния или времени «сейчас». Текущие функции, принимающие BeautifulSoup, можно сохранить. Старые `NistResponse.text`, `.soup` и публичные импорты остаются совместимыми тонкими входами; фактическая работа с разметкой делегируется `parsing/`.
+A parser receives text/DOM and the page URL; it must not require a client, a live `requests.Response`, global state, or the current time. Existing functions accepting BeautifulSoup may be retained. Existing `NistResponse.text`, `.soup`, and public imports remain compatible thin entry points; actual markup processing is delegated to `parsing/`.
 
-Существующие `NistCompound.data_refs`, `CompoundRecord.data_refs` и колонки индекса сохраняют один основной URL на семейство. Полный перечень ссылок добавляется отдельным представлением и используется новым обходом, включая продолжения и индивидуальные измерения. Старое поле не меняется молча со строки на список. Внутри достаточно одной полной коллекции и вычисляемого совместимого представления; два независимо изменяемых набора ссылок не нужны.
+Existing `NistCompound.data_refs`, `CompoundRecord.data_refs`, and index columns retain one primary URL per family. A complete list of links is added as a separate view and used by the new traversal, including continuations and individual measurements. The existing field must not silently change from a string to a list. Internally, one complete collection and a derived compatibility view are sufficient; two independently mutable link collections are unnecessary.
 
-Новые файлы создаются по мере применения: общие HTML-помощники, разбор поиска, спектральных ссылок и formula browser, затем семейства научных таблиц. Не требуется заранее раскладывать все потенциальные модули.
+Add new files as they become useful: common HTML helpers, parsing of search results, spectral links and the formula browser, then scientific table families. There is no need to lay out all potential modules in advance.
 
-Общие функции полезны для пяти повторяющихся операций:
+Shared functions are useful for five recurring operations:
 
-1. Выделение раздела до следующего заголовка соответствующего уровня.
-2. Чтение текста с сохранением научных обозначений и значимых разделителей.
-3. Разрешение относительных ссылок и параметров URL через стандартный `urllib.parse`.
-4. Чтение наблюдаемых форм таблиц с сохранением заголовков, объединённых ячеек, ссылок и примечаний.
-5. Извлечение библиографии и указаний происхождения с областью их действия.
+1. Extracting a section up to the next heading of the appropriate level.
+2. Reading text while preserving scientific notation and meaningful separators.
+3. Resolving relative links and URL parameters through the standard `urllib.parse` module.
+4. Reading observed table layouts while preserving headers, merged cells, references and notes.
+5. Extracting bibliography and provenance statements together with their scope.
 
-Выделять общий код после подтверждения повторения в разных случаях. Интерпретация теплового эффекта, коэффициентов Antoine, спектрального состояния и реакции остаётся специализированной. Одинаковый HTML не гарантирует одинаковый научный смысл.
+Extract common code once repetition across distinct cases has been confirmed. Interpretation of reaction enthalpies, Antoine coefficients, spectral states, and reactions remains specialized. Identical HTML does not imply identical scientific meaning.
 
-Для новых табличных данных начать с простого контейнера таблицы: семейство, вид таблицы, данные, условия/метаданные, источники и диагностика. Согласованные имена полей для каждого семейства задаются фикстурами. Сохранить pandas и dataclasses. Отдельный тип вводить, когда существующий контейнер начинает терять смысл или требовать несовместимых полей.
+For new tabular data, start with a simple table container: family, table type, data, conditions/metadata, sources, and diagnostics. Agreed field names for each family are defined by its fixtures. Retain pandas and dataclasses. Introduce a separate type when the existing container would lose meaning or require incompatible fields.
 
-**Не вводить без отдельной выявленной необходимости:** плагины/реестр провайдеров, общий AST сайта, ORM, БД, универсальную систему единиц, очереди задач, асинхронный обход, браузерную автоматизацию, автоматическое «угадывание» изменившейся структуры или движок юридических решений. Никакого порога количества файлов или классов ради самого порога.
+**Do not introduce without a separately demonstrated need:** plugins/provider registries, a general site AST, ORM, a database, a universal unit system, task queues, asynchronous traversal, browser automation, automatic guessing of changed structures, or a legal decision engine. Do not impose an arbitrary target number of files or classes.
 
-## 6. Данные, происхождение и права
+## 6. Data, provenance and rights
 
-Сохранять три различимых уровня: исходный ресурс; извлечённые сведения без потери содержания; производные нормализованные данные. Нормализация не должна подменять источник.
+Preserve three distinguishable levels: original resources; extracted information without loss of content; derived normalized data. Normalization must not replace the source.
 
-| Группа сведений | Минимальное содержание |
+| Information group | Minimum content |
 |---|---|
-| Идентичность | WebBook ID, семейство, индекс спектра/таблицы или локальный идентификатор, привязанный к исходному ресурсу |
-| Получение | Запрошенный и конечный URL, UTC-время получения, хеш сохранённого тела ответа, кодирование при необходимости |
-| Научный источник | Библиографические записи и ссылки строк/серий на них; коллекция, origin, owner, компилятор, если указаны |
-| Права | Найденное указание/ссылка на условия, его область действия и источник; статус известности; явное отсутствие или конфликт сведений |
-| Обработка | Версия схемы и NistChemPy; для dev-сборки коммит; для производной выгрузки версия/коммит NistChemData и параметры преобразования |
+| Identity | WebBook ID, family, spectrum/table index or local identifier associated with the original resource |
+| Retrieval | Requested and final URL, UTC retrieval time, hash of the saved response body, encoding where necessary |
+| Scientific source | Bibliographic records and links from rows/series to them; collection, origin, owner, compiler where specified |
+| Rights | Observed notice/link to terms, its scope and source; whether rights information is known; explicit absence or conflict of information |
+| Processing | Schema and NistChemPy versions; commit for a development build; NistChemData version/commit and transformation parameters for derived exports |
 
-`source_url` и `retrieved_at` сохраняются. Недостающие сведения старых архивов и созданных вручную записей остаются неизвестными. Время повторного экспорта не превращается во время получения. Для произвольного пользовательского словаря, пропущенного через writer, происхождение NIST не выдумывается.
+Retain `source_url` and `retrieved_at`. Missing information in legacy archives and manually created records remains unknown. Re-export time does not become retrieval time. Do not invent NIST provenance for an arbitrary user-provided dictionary passed through a writer.
 
-Численные поля сохраняются вместе с единицами, температурой/давлением и иным контекстом, неопределённостью, диапазоном или квалификатором, методом, фазой и примечаниями. Неуверенно разобранное значение остаётся доступным в исходном виде с диагностикой. Отсутствие неопределённости не означает ноль; среднее значение не подменяет отдельные измерения; разные источники не дедуплицируются только по совпадению числа. Не реализовывать вычисление всех опубликованных зависимостей ради извлечения их коэффициентов.
+Preserve numerical fields together with units, temperature/pressure and other context, uncertainty, range or qualifier, method, phase, and notes. A value that cannot be parsed confidently remains available in its original form with a diagnostic. Missing uncertainty does not mean zero; an average does not replace individual measurements; records from distinct sources are not deduplicated solely because their numerical values agree. Do not implement evaluation of every published correlation merely to extract its coefficients.
 
-Owner, origin, ссылка на статью и лицензия — разные сведения. На реальной странице спектра отдельно указаны владелец, источник и права на коллекцию; NIST отдельно описывает режим SRD и других материалов. Поэтому библиотека сохраняет доказательства и явные неизвестные значения, а не выводит «можно для любых целей» из доступности страницы или MIT-лицензии кода. [W5][w5] [W6][w6]
+Owner, origin, article reference, and license are distinct pieces of information. A real spectrum page provides separate owner, origin, and collection rights information; NIST separately describes the treatment of SRD and other materials. The library therefore preserves evidence and explicit unknown values rather than inferring unrestricted use from public page access or the MIT license of the code. [W5][w5] [W6][w6]
 
-Указание на всю страницу нельзя безусловно выдать за единственную лицензию каждой строки. Для смешанных источников сохраняется привязка к таблице/строке/спектру; несколько применимых уведомлений не затирают друг друга. Извлечённые сведения и явно добавленная оценка прав различаются.
+A page-wide notice cannot unconditionally be treated as the sole license of every row. For mixed sources, preserve the association with the table/row/spectrum; multiple applicable notices must not overwrite one another. Distinguish extracted information from an explicitly added rights assessment.
 
-JSON/JSONL должны переносить эти поля. CSV/SDF и объединённые таблицы получают устойчивый идентификатор записи и связь до источника. Если сам формат выгрузки не сохраняет всю связь, обязателен сопутствующий JSON/JSONL. Одна глобальная надпись о происхождении всего CSV недостаточна. Не использовать текущий номер строки как единственный ключ. Приёмочный пример: три строки одной таблицы — две с разными ссылками/указаниями о правах и одна с неизвестными правами; после фильтрации, перестановки и повторного экспорта связи остаются верными. Общие уведомления можно хранить один раз и адресовать по идентификатору.
+JSON/JSONL must carry these fields. CSV/SDF and combined tables receive a stable record identifier and a link back to the source. If the export format itself cannot preserve the complete association, an accompanying JSON/JSONL file is mandatory. One global provenance statement for the entire CSV is insufficient. Do not use the current row number as the only key. Acceptance example: three rows of one table, two with different references/rights notices and one with unknown rights; after filtering, reordering, and re-export, the associations remain correct. Shared notices may be stored once and referenced by identifier.
 
-## 7. Ошибки и проверки
+## 7. Errors and tests
 
-### Различение исходов
+### Distinguishing outcomes
 
-Подтверждённое отсутствие данных, неподдержанный вариант, повреждённый/неожиданный ответ, ошибка сети и частичный результат имеют различимые исходы. Не требуется общая обёртка результата для всех старых методов: достаточно согласованной диагностики, существующей иерархии исключений и статусов в пакетном отчёте.
+Confirmed absence of data, unsupported variants, damaged/unexpected responses, network failures, and partial results have distinguishable outcomes. A common result wrapper for all existing methods is not required: consistent diagnostics, the existing exception hierarchy, and statuses in the batch report are sufficient.
 
-Операция над объектом не оставляет частично дописанное состояние без явного признака. Повтор одной успешной загрузки не создаёт дубликаты. Пакетная выгрузка может продолжаться после ошибки отдельного элемента, но завершает запуск отчётом и ненулевым кодом при нерешённых ошибках.
+An object operation must not leave partially appended state without an explicit indication. Repeating a successful retrieval must not create duplicates. Batch retrieval may continue after an individual item fails, but must finish with a report and a nonzero exit code if unresolved errors remain.
 
-### Три уровня тестов
+### Three levels of testing
 
-| Уровень | Что проверяет | Роль |
+| Level | What it checks | Role |
 |---|---|---|
-| Офлайн | Фикстуры → ожидаемые значения; публичные операции с подменёнными ответами; экспорт и resume | Обязательный CI и критерий приёмки |
-| Контроль актуальности источника | Небольшой набор реальных URL → ожидаемые семейства, смысловые признаки и доступность нужных путей | Отдельный ручной и периодический workflow с предупреждением; не блокирует обычные PR |
-| Сетевые сценарии | Реальный поиск → загрузка → разбор → запись | Отдельный необязательный запуск для технической интеграции; ограниченный приёмочный прогон перед итоговой поставкой |
+| Offline | Fixtures → expected values; public operations with substituted responses; export and resumption | Mandatory CI and acceptance criterion |
+| Live source compatibility checks | A small set of real URLs → expected families, meaningful features and availability of required navigation paths | Separate manual and periodic workflow with warnings; does not block ordinary PRs |
+| Network scenarios | Real search → retrieval → parsing → record | Separate optional technical integration run; limited acceptance run before final delivery |
 
-Контроль актуальности сравнивает существенные признаки, не весь DOM, точные числа строк или неизменность химических значений. Он не доказывает эквивалентность dummies всему сайту. Различает недоступность источника, структурное расхождение и ожидаемое изменение содержания. Фикстуры автоматически не переписываются.
+Live source compatibility checks compare significant features, not the entire DOM, exact row counts, or unchanged chemical values. They do not establish the equivalence of the dummies to the entire site. Distinguish source unavailability, structural drift, and expected content changes. Fixtures must not be rewritten automatically.
 
-Предупреждение CI не разрешает экспортировать заведомо неверные данные: подтверждённая ошибка разбора обязательного случая исправляется до приёмки. Недоступность сайта фиксируется отдельно и не превращает офлайн-тесты в красные.
+A CI warning does not authorize exporting known incorrect data: confirmed parsing errors in mandatory cases must be fixed before acceptance. Site unavailability is recorded separately and does not cause offline tests to fail.
 
-Обязательные регрессии: неизвестный HTML при HTTP 200; HTML вместо MOL/JDX; ошибочный/чужой `Index`; сохранение RequestConfig; границы GC; повторный вызов; несколько URL одного семейства; продолжение реакций; индивидуальные значения; несколько библиографических ссылок; права разных источников; прерывание и возобновление; отсутствие файла из завершённого архива; одинаковые подписи разных GC-таблиц; частичный индекс.
+Mandatory regressions: unrecognized HTML with HTTP 200; HTML instead of MOL/JDX; incorrect/unrelated `Index`; preservation of RequestConfig; GC section boundaries; repeated calls; multiple URLs for one family; reaction continuations; individual values; multiple bibliographic references; rights from different sources; interruption and resumption; a missing file in a completed archive; identical captions of different GC tables; a partial index.
 
-Использовать pytest и имеющиеся маркеры. Сеть в обычных тестах технически запрещать. Общие изменения оформления проверять ограниченным набором параметризованных преобразований. Широкий fuzzing, инфраструктура mutation testing и произвольный процент покрытия не являются задачами ветки.
+Use pytest and the existing markers. Technically prevent network access in ordinary tests. Check common formatting changes using a bounded set of parameterized transformations. Broad fuzzing, mutation-testing infrastructure, and arbitrary code coverage percentages are not part of this development cycle.
 
-## 8. NistChemData и локальное воспроизведение
+## 8. NistChemData and local reproducibility
 
-Сохранить скрипты, ZIP и знакомые производные форматы. Убрать дублирование извлечения ссылок и получения источников: оно принадлежит NistChemPy. Библиотечные операции должны уметь использовать URL/ID уже имеющегося индекса, не выполнять лишний запрос карточки на каждый файл.
+Retain the scripts, ZIP archives, and familiar derived formats. Eliminate duplicate link extraction and resource retrieval logic: these belong in NistChemPy. Library operations must be able to use the URL/ID from an existing index without making an unnecessary compound-page request for each file.
 
-Для всех новых обязательных семейств добавить воспроизводимый путь выгрузки через библиотеку. Если один общий сценарий табличных данных достаточен, не создавать загрузчик на каждую физическую величину.
+Add a reproducible retrieval path through the library for every new mandatory family. If one common tabular data script is sufficient, do not create a downloader for every physical quantity.
 
-Необходимые изменения:
+Necessary changes:
 
-- Сохранять исходные тела всех использованных ответов, включая GC HTML, карточки, листинги, продолжения и страницы индивидуальных измерений, если от них зависят результат, набор дочерних ресурсов или происхождение. Фиксировать метаданные каждого ответа; производные CSV обозначать как обработанные.
-- Идентифицировать ресурс по источнику, а не только по подписи таблицы или имени вещества.
-- Учитывать ожидаемый набор ресурсов до объявления элемента завершённым; сохранять состояние незавершённого скачивания.
-- Для нового формата проверять наличие, хеш и минимальную валидность файлов. Старые архивы без достаточного манифеста читать как legacy с неизвестной полнотой; переиспользовать проверенные файлы, но не объявлять весь набор полным.
-- Сохранять первоначальные метаданные повторно используемых ресурсов. Изменение источника при новом посещении создаёт новую версию локального входа и явно отражается в отчёте.
-- Версионировать формат манифеста; не дописывать новые столбцы под старый CSV-заголовок.
-- Записывать выбранные ID/семейства, ограничения, индекс и его хеш, версии двух репозиториев, параметры и контрольные суммы выходов.
-- Сохранять полный исходный набор спектральных метаданных. Текущие IR-поля origin/owner/source reference полезны; фиксированная проекция колонок не должна уничтожать прочие сведения. [D4][d4]
-- Оставить научную фильтрацию, нормализацию состояния образца, выбор первого спектра и подобные решения явно именованными преобразованиями с сохранением входа и параметров.
+- Save the original bodies of all responses used, including GC HTML, compound pages, listings, continuations, and individual-measurement pages, where the result, set of child resources, or provenance depends on them. Record metadata for each response; label derived CSV files as processed.
+- Identify resources by their source, not solely by table caption or compound name.
+- Account for the expected set of resources before declaring an item complete; retain the state of interrupted retrieval.
+- For the new format, verify file existence, hashes, and minimum validity. Read old archives without adequate manifests as legacy archives with unknown completeness; reuse verified files but do not declare the whole set complete.
+- Preserve the original metadata of reused resources. A changed source on a later visit creates a new version of the local input and is explicitly reflected in the report.
+- Version the manifest format; do not append new columns beneath an old CSV header.
+- Record selected IDs/families, limits, the index and its hash, versions of both repositories, parameters, and output checksums.
+- Preserve the complete original set of spectral metadata. The existing IR origin/owner/source reference fields are useful; a fixed column projection must not discard other information. [D4][d4]
+- Keep scientific filtering, sample-state normalization, selection of the first spectrum, and similar decisions as explicitly named transformations, preserving inputs and parameters.
 
-**Граница воспроизведения:** сохранённый индекс является явным входом NistChemData. От этого входа сохраняются все использованные источники и связи, необходимые для повторения выгрузки в пределах выбранного запуска и последующей обработки. Повторное построение индекса из всего живого сайта не является условием офлайн-воспроизведения набора; для индекса отдельно фиксируются стратегия, ограничения и ошибки discovery.
+**Reproducibility boundary:** the saved index is an explicit input to NistChemData. Starting from that input, preserve all used sources and associations necessary to repeat retrieval within the selected run and its subsequent processing. Rebuilding the index from the entire live site is not a requirement for offline dataset reproduction; record the index's discovery strategy, limitations, and errors separately.
 
-**Критерий воспроизводимости:** одинаковые сохранённые входы, настройки и версии дают эквивалентные научные записи и связи происхождения без сети. При проверке после прерывания первого из двух ресурсов учитываются перечень ожидаемых ресурсов, первоначальные времена получения и права. Новое скачивание изменяемого сайта не обязано дать прежний набор; временные метки ZIP сами по себе не являются научным расхождением.
+**Reproducibility criterion:** identical saved inputs, settings and versions produce equivalent scientific records and provenance associations without network access. When validating resumption after interruption following the first of two resources, account for the expected resource set, original retrieval times, and rights. A new retrieval from a changing site need not produce the same dataset; ZIP timestamps alone do not constitute a scientific discrepancy.
 
-«Все данные» означает весь запланированный и обнаруженный объём конкретного запуска. Отчёт показывает: выбранные записи, обнаруженные ресурсы, успешно полученные и разобранные, подтверждённое отсутствие, неподдержанные варианты, ошибки и ограничения discovery. Один завершённый обход не доказывает глобальную полноту WebBook. Полная персональная выгрузка выполняется после малого пилота с учётом условий источника; её успех оценивается этим отчётом.
+"All data" means the entire planned and discovered scope of a particular run. The report identifies selected records, discovered resources, successfully retrieved and parsed resources, confirmed absence, unsupported variants, errors, and discovery limitations. One completed traversal does not establish global WebBook completeness. Full personal retrieval follows a small pilot and takes account of the source's terms; its success is evaluated using this report.
 
-## 9. План работ и проверяемые результаты
+## 9. Work plan and verifiable deliverables
 
-Этапы — внутренние контрольные точки одной разработки. Они не означают промежуточных релизов.
+The stages are internal checkpoints in a single development cycle. They do not imply intermediate releases.
 
-| Этап | Работа | Условие завершения |
+| Stage | Work | Completion condition |
 |---|---|---|
-| A0 — каталог и эталоны | Зафиксировать исходный pytest; инвентаризировать весь обязательный объём; создать dummies, ожидаемые результаты и минимальную схему происхождения | У всех обязательных вариантов есть пример, ожидаемый выход и статус; новые наблюдения превращены в конкретные задачи; ограничения объёма явно записаны |
-| A1 — изоляция и действующий контракт | Перенести операции HTML в `parsing/`; реализовать общие поля происхождения; исправить ложные успехи, конфигурацию, выбор ссылок и повторы GC | Нынешние публичные сценарии проходят офлайн; парсеры не зависят от сети; происхождение сохраняется до экспорта |
-| A2 — научное покрытие | Небольшими задачами реализовать все обязательные семейства и переходы по их эталонам | По каждому варианту есть парсер, тест, сохранение научного контекста и пример использования; обязательных пропусков нет |
-| A3 — индекс и пакетная выгрузка | Исправить учёт полноты/resume индекса; согласовать NistChemData; исходные файлы, манифесты, обработка и все новые семейства | Синтетическая цепочка индекс → выгрузка → прерывание → продолжение → экспорт работает без дублей и потерь |
-| A4 — функциональная приёмка | Проверить актуальность источника, небольшой реальный пилот, независимую сверку, совместимость двух репозиториев и сборку | Выполнены функциональные критерии раздела 10; итоговые версии двух репозиториев совместимы; объём и контракты готовы для финальной документации |
-| A5 — документация и финальная приёмка | После A4 мигрировать документацию NistChemPy на Zensical, обновить README, навигацию, руководства, API и примеры; создать самостоятельную стартовую страницу с dark/light режимами, используя pyvoro2 как ориентир; привести рабочие материалы в порядок | Документация согласована с реализованным функционалом, собрана и проверена; рабочие материалы распределены или архивированы; совместные критерии раздела 10 выполнены; готов release PR |
-| После приёмки | Полная персональная выгрузка, отчёт о покрытии, исследовательские примеры и материал статьи | Полученный набор имеет проверяемый состав и происхождение; ограничение или ошибка названы явно |
+| A0 — catalog and reference cases | Record the baseline pytest result; inventory the entire mandatory scope; create dummies, expected results and minimum provenance schema | Every mandatory variant has an example, expected output and status; new observations become concrete tasks; scope limits are explicit |
+| A1 — isolation and existing contracts | Move HTML operations into `parsing/`; implement common provenance fields; fix false successes, configuration, link selection and repeated GC retrieval | Existing public scenarios pass offline; parsers do not depend on network access; provenance survives through export |
+| A2 — scientific coverage | Implement all mandatory families and navigation paths in small tasks according to their reference cases | Each variant has a parser, test, preserved scientific context and usage example; no mandatory gaps remain |
+| A3 — index and batch retrieval | Fix index completeness accounting/resumption; coordinate NistChemData; original files, manifests, processing and all new families | The synthetic sequence index → retrieval → interruption → resumption → export works without duplicates or losses |
+| A4 — functional acceptance | Check live source compatibility, a small real pilot, independent comparison, compatibility of the two repositories, and the build | Functional criteria in Section 10 are met; final versions of both repositories are compatible; scope and contracts are ready for final documentation |
+| A5 — documentation and final acceptance | After A4, migrate NistChemPy documentation to Zensical, update the README, navigation, guides, API and examples; create an independent landing page with dark/light modes, using pyvoro2 as a reference; organize working materials | Documentation reflects the implemented functionality, has been built and checked; working materials are integrated or archived; joint criteria in Section 10 are met; release PR is ready |
+| After acceptance | Full personal retrieval, coverage report, research examples and paper material | The resulting dataset has verifiable composition and provenance; limitations or errors are explicitly reported |
 
-В A2 рациональный порядок: укрепление карточек/спектров/GC; газовая и конденсированная термохимия; фазовые переходы и Henry; реакции, ионная энергетика и кластеризация; уровни и двухатомные молекулы. После A0 порядок уточняется по реальному повторению структур. Сложные семейства присутствуют в эталонах с начала, чтобы ранние решения их учитывали.
+A reasonable order within A2 is: strengthen compound pages/spectra/GC; gas and condensed-phase thermochemistry; phase transitions and Henry's law; reactions, ion energetics and clustering; energy levels and diatomic molecules. Refine the order after A0 based on observed structural commonality. Complex families are included in the reference cases from the beginning so that early decisions take them into account.
 
-Рабочие области: `tests/fixtures/`, `tests/test_parsing_*`, `tests/online/`; `requests.py`, `compound.py`, `search.py`, `parsing/`, `records/`; точечные изменения `indexing/builder.py`, `discovery.py`, `enrichment.py`; затем NistChemData `scripts/` и новый офлайн-набор тестов. Технические записи о реализованном поведении, ограничениях и тестах обновляются вместе с соответствующей возможностью; не оставлять известные ошибки в затронутых примерах или API-описаниях. Действующий сайт и Sphinx сохраняются до A5. Перестройка структуры, миграция на Zensical и дизайн стартовой страницы выполняются только после функциональной приёмки, а не в ходе A0–A4.
+Working areas: `tests/fixtures/`, `tests/test_parsing_*`, `tests/online/`; `requests.py`, `compound.py`, `search.py`, `parsing/`, `records/`; focused changes to `indexing/builder.py`, `discovery.py`, `enrichment.py`; then NistChemData `scripts/` and a new offline test suite. Update technical descriptions of implemented behavior, limitations, and tests alongside the corresponding capability; do not leave known errors in affected examples or API descriptions. Keep the existing site and Sphinx until A5. Restructure the documentation, migrate to Zensical, and design the landing page only after functional acceptance, not during A0–A4.
 
-Каждая реализационная задача замыкает короткий цикл: независимый ожидаемый результат → тест конкретного поведения → минимальная реализация → проверка затронутых сценариев → небольшой коммит. Детальные сигнатуры новых научных парсеров определяются по A0; заранее фиксировать их для ещё не обследованных вариантов было бы преждевременно.
+Each implementation task follows a short cycle: independent expected result → test of specific behavior → minimal implementation → validation of affected scenarios → small commit. Define detailed signatures of new scientific parsers based on A0; specifying them in advance for variants that have not yet been investigated would be premature.
 
-## 10. Критерии готовности
+## 10. Acceptance criteria
 
-- Все обязательные случаи каталога реализованы, имеют активные офлайн-тесты и проверены через пользовательский путь; сохранение сырого текста не подменяет экстракцию согласованных полей.
-- Выполнен детерминированный офлайн-прогон; сеть в нём запрещена. Проверяются заявленный минимум Python NistChemPy (`>=3.9`) и выбранная актуальная поддерживаемая версия; изменение минимума не маскируется под рефакторинг.
-- Сохраняются рабочие публичные импорты, способы вызова и смысл существующих результатов. Новые поля не сдвигают молча позиционные аргументы dataclass-конструкторов. Документированные изменения ошибочного поведения проверены отдельно.
-- JSON/JSONL и табличные/SDF-выгрузки сохраняют требуемую связь до источника и права/неизвестность. Выключение сырого текста при экспорте не удаляет происхождение.
-- Повторная загрузка и возобновление не теряют ресурсы, не создают необъяснимые дубли и не переименовывают частичный результат в полный.
-- На сохранённом синтетическом корпусе весь путь NistChemData воспроизводится без сети; повторная обработка не меняет время получения источников.
-- Малый живой пилот проверен независимо от кода парсера: значения, единицы, условия, ссылки и полнота переходов. Для каждого обязательного семейства нужен хотя бы один проверенный реальный пример. Засчитывается датированная ручная проверка A0, если последующие изменения контракта её не обесценили и нет подтверждённого расхождения. Текущая недоступность отмечается отдельно; если реальный пример никогда не проверялся, случай остаётся незавершённой внешней проверкой.
-- Отчёт содержит знаменатель покрытия и все нерешённые случаи. Подтверждённые ошибки обязательной экстракции не списаны на warning.
-- README/API/примеры описывают новые функции и ограничения; сборка проверена на отсутствие локальных выгрузок и исходных реальных страниц. Существующий `tools/check_package_artifacts.py` сохраняется. [P9][p9]
+- All mandatory catalog cases are implemented, have active offline tests, and are tested through the user-facing path; saving raw text does not substitute for extracting the agreed fields.
+- A deterministic offline test run has completed with network access prohibited. Test the declared minimum Python version for NistChemPy (`>=3.9`) and a selected current supported version; a change to the minimum must not be disguised as refactoring.
+- Existing public imports, calling conventions, and the meaning of existing results are preserved. New fields must not silently shift positional arguments of dataclass constructors. Documented changes to erroneous behavior are tested separately.
+- JSON/JSONL and tabular/SDF exports preserve the required link to the source and known/unknown rights information. Disabling raw text in exports does not remove provenance.
+- Repeated retrieval and resumption do not lose resources, create unexplained duplicates, or relabel a partial result as complete.
+- The entire NistChemData path can be reproduced without network access on the saved synthetic corpus; reprocessing does not change original retrieval times.
+- A small live pilot is checked independently of parser code: values, units, conditions, references, and completeness of navigation paths. Each mandatory family requires at least one verified real example. A dated manual check from A0 counts if subsequent contract changes have not invalidated it and no confirmed discrepancy exists. Current source unavailability is recorded separately; if a real example has never been checked, the case remains an incomplete external validation.
+- The report contains the coverage denominator and all unresolved cases. Confirmed failures of mandatory extraction are not dismissed as warnings.
+- README/API documentation/examples describe new capabilities and limitations; the build is checked to ensure it contains no local retrievals or original real pages. Retain the existing `tools/check_package_artifacts.py`. [P9][p9]
 
-Для финальной приёмки A5 дополнительно обязательны:
+Final A5 acceptance additionally requires:
 
-- Сайт NistChemPy собирается на Zensical без сетевой загрузки WebBook и без обязательного выполнения notebooks; все документированные импорты и примеры проверены применимыми тестами.
-- Отдельные GitHub/PyPI README и стартовая страница сайта согласованы по научным утверждениям. Стартовая страница имеет самостоятельный дизайн, светлую и тёмную темы, понятные входы в документацию; не требуется копировать визуальную систему pyvoro2 буквально.
-- Навигация и пользовательская/API-документация очищены от устаревшего и дублирующегося материала. Существующие публичные пути сохранены или предусмотрены осознанные переходы; рабочие планы и необходимые решения распределены или архивированы.
-- Предварительные сборки документации доступны для проверки в PR; production deployment выполняется только из `main`. До A5 текущий Sphinx-сайт остаётся действующим.
+- The NistChemPy site builds with Zensical without retrieving WebBook data over the network and without mandatory notebook execution; all documented imports and examples are checked by applicable tests.
+- The separate GitHub/PyPI README and site landing page make consistent scientific claims. The landing page has its own design, light and dark themes, and clear entry points into the documentation; it need not literally copy pyvoro2's visual system.
+- Navigation and user/API documentation are cleared of outdated and duplicate material. Existing public paths are preserved or intentional redirects are provided; working plans and necessary decisions are integrated or archived.
+- Documentation preview builds are available for PR review; production deployment runs only from `main`. Until A5, the current Sphinx site remains operational.
 
-Не требуются для завершения кода: принятие статьи журналом, успешный ответ NIST на неотправленное письмо или отсутствие ошибок сети на произвольном полном обходе. Готовность конкретной выгрузки оценивается отдельно от готовности инструмента.
+Code completion does not require journal acceptance of the paper, a successful NIST response to a letter that has not been sent, or an error-free network traversal of arbitrary size. Readiness of a particular retrieval is assessed separately from readiness of the tool.
 
-## 11. Организация единой разработки
+## 11. Organization of the development cycle
 
-Постоянная модель веток по аналогии с pyvoro2:
+Permanent branch model following pyvoro2:
 
-| Ветка | Назначение |
+| Branch | Role |
 |---|---|
-| `main` | Стабильная рабочая версия, default branch, источник публичной документации |
-| `dev` | Защищённая постоянная интеграционная ветка, первоначально от текущего `main` |
-| Рабочие ветки | Небольшие задачи, создаваемые от актуального `dev`, например `work/a0-fixtures`; изменения принимаются в `dev` только через PR |
+| `main` | Stable working version, default branch, source of public documentation |
+| `dev` | Protected permanent integration branch, initially based on the current `main` |
+| Working branches | Small tasks based on the current `dev`, e.g. `work/a0-fixtures`; changes are accepted into `dev` only through PRs |
 
-Обе интеграционные ветки защищаются от прямой записи, удаления и force push, требуют PR и обязательной детерминированной проверки CI. Базовые rulesets — по аналогии с pyvoro2, включая неизменность уже созданных тегов `v*`. Обязательная проверка `offline` с требованием актуальной базы подключается после появления свежего успешного результата CI; сетевые проверки не являются обязательным статусом. Для обычных рабочих PR предпочтителен squash merge. Перед первым release PR нужно согласовать способ синхронизации истории постоянных `main` и `dev` после релиза с учётом линейной истории и запрета force push. Не сбрасывать защищённую `dev` молча и не публиковать промежуточные версии.
+Both integration branches are protected against direct writes, deletion, and force pushes, and require PRs and a mandatory deterministic CI check. The basic rulesets follow pyvoro2, including immutability of existing `v*` tags. The required `offline` check, with up-to-date branches required, is enabled after a fresh successful CI result; network checks are not required status checks. Squash merging is preferred for ordinary working PRs. Before the first release PR, agree on how to synchronize the history of the permanent `main` and `dev` branches after release, accounting for linear history and the force-push prohibition. Do not silently reset protected `dev` or publish intermediate versions.
 
-При начале изменений NistChemData применяется та же модель; не объединять репозитории ради этого. Для совместных прогонов фиксируется пара коммитов Py/Data, а не только название движущейся ветки.
+Apply the same model when work on NistChemData begins; do not merge the repositories for this purpose. Record the pair of Py/Data commits for joint runs, not merely the name of a moving branch.
 
-До A0 — отдельный технический bootstrap: создать `dev` от проверенного HEAD `main`, настроить защиту веток и тегов, организовать рабочие документы и необходимые детерминированные проверки. ТЗ помещается в `docs/development/plan.md` через рабочую ветку и PR в `dev`. Предлагаемая минимальная структура рабочего раздела — `README.md` (точка входа и ссылки на задачи), `plan.md` (этот план). Каталог источников и эталонов развивается в A0; ADR добавляются только для существенных долгосрочных решений, которые не описаны достаточно ясно в существующих контрактах. GitHub Issues/PR служат трекингом конкретной работы, не дублировать их статусами в Markdown. Технические настройки процесса и точные критерии A0 могут быть дополнены отдельным PR. Рабочий раздел пока не включается в пользовательский сайт; в A5 сохраняется исторический план, а актуальные научные и технические материалы размещаются в подходящих разделах Zensical.
+Before A0, complete a separate technical bootstrap: create `dev` from the verified HEAD of `main`, configure branch and tag protection, establish working documents and necessary deterministic checks. Place this specification in `docs/development/plan.md` through a working branch and PR to `dev`. The proposed minimum working section consists of `README.md` (entry point and links to tasks) and `plan.md` (this plan). Develop the source and reference-case catalog in A0; add ADRs only for significant long-term decisions not adequately described in existing contracts. GitHub issues and PRs track concrete work; do not duplicate their statuses in Markdown. Technical workflow settings and precise A0 criteria may be supplemented in a separate PR. Do not include the working section in the user-facing site yet; in A5 preserve the historical plan and place current scientific and technical materials in appropriate Zensical sections.
 
-После bootstrap — корпус и эталоны; после этого — реализация. Новая находка в обязательном семействе сначала добавляет случай и ожидаемый результат в каталог. Большая новая возможность вне зафиксированного объёма записывается отдельно и не расширяет ветку незаметно. Промежуточные релизы и публикации в PyPI не делаются.
+After bootstrap, establish the corpus and reference cases, then implement the functionality. A new finding in a mandatory family first adds a case and expected result to the catalog. A substantial new capability outside the agreed scope is recorded separately and does not expand the development cycle silently. There are no intermediate releases or PyPI publications.
 
-## 12. Что сохранено, изменено и добавлено
+## 12. What was retained, changed and added
 
-| Решение | Относительно прежнего плана | Почему |
+| Decision | Relative to the previous plan | Rationale |
 |---|---|---|
-| Разделение NistChemPy/NistChemData, основные публичные объекты, pandas/dataclasses, JSONL, индекс, CLI | Сохранено | Уже решает большую часть организационных задач |
-| Dummies на весь целевой функционал в начале | Сохранено и уточнено | Это спецификация разработки; корпус не ограничивается существующими парсерами |
-| Изоляция HTML и общие вспомогательные функции | Сохранено | Убирает конкретное дублирование и позволяет проверять парсинг без HTTP |
-| Происхождение и права | Перенесено раньше | Поля нужны в ожидаемых результатах A0 и первом работающем экспорте |
-| Универсальная модель всех измерений, общая обёртка каждого результата, заранее заданное дерево модулей | Упрощено | Общий контейнер/помощник создаётся по наблюдаемой потребности; научные различия остаются явными |
-| Проверка dummies по живым страницам | Уточнено | Проверяются смысловые признаки и доступность путей; полного доказательства эквивалентности нет |
-| Предупреждения о live-сбоях | Уточнено | CI остаётся независимым от сети, но подтверждённая порча данных препятствует приёмке |
-| Продолжения, индивидуальные измерения, несколько URL одного семейства | Добавлено | Названия разделов не обеспечивают полноту извлечения |
-| Исправление resume, полноты индекса, идентичности файлов и сохранение исходного GC HTML | Добавлено | Повторный аудит выявил конкретные пути к пропуску данных и невозможности повторного разбора |
-| Версии схемы, пара коммитов, хеши, связи экспорта с источниками | Добавлено в минимальном виде | Позволяет объяснить состав локального набора и воспроизвести обработку |
-| Постоянные защищённые `main` и `dev`; PR из рабочих веток; без промежуточных релизов | Уточнено 27 ноября | Унифицирует рабочий процесс с pyvoro2 и сохраняет стабильную версию до приёмки |
-| Финальная документация на Zensical с отдельной стартовой страницей и dark/light режимами | Добавлено 27 ноября | Позволяет привести документацию в порядок один раз, когда функциональные контракты уже стабильны |
+| Separation of NistChemPy/NistChemData, principal public objects, pandas/dataclasses, JSONL, index, CLI | Retained | Already addresses most organizational needs |
+| Dummies for the entire target functionality at the start | Retained and clarified | This is the development specification; the corpus is not limited to existing parsers |
+| HTML isolation and shared helpers | Retained | Eliminates specific duplication and allows parsing to be tested without HTTP |
+| Provenance and rights | Moved earlier | Fields are needed in A0 expected results and the first working export |
+| Universal model of all measurements, common wrapper for every result, predetermined module tree | Simplified | Introduce a shared container/helper according to observed need; scientific distinctions remain explicit |
+| Checking dummies against live pages | Clarified | Check meaningful features and availability of navigation paths; this is not a complete proof of equivalence |
+| Warnings about live failures | Clarified | CI remains network-independent, but confirmed data corruption prevents acceptance |
+| Continuations, individual measurements, multiple URLs per family | Added | Section names do not establish extraction completeness |
+| Fix resumption, index completeness, file identity, and preservation of original GC HTML | Added | The repeated audit identified concrete paths to missing data and inability to reparse |
+| Schema versions, commit pair, hashes, export-to-source associations | Added in minimal form | Allows the composition of the local dataset to be explained and processing reproduced |
+| Permanent protected `main` and `dev`; PRs from working branches; no intermediate releases | Clarified on 27 November | Aligns the workflow with pyvoro2 and preserves the stable version until acceptance |
+| Final Zensical documentation with a separate landing page and dark/light modes | Added on 27 November | Allows documentation to be reorganized once, after the functional contracts have stabilized |
 
-## Источники аудита
+## Audit sources
 
-Все ссылки на код привязаны к проверенным коммитам. Страницы NIST просмотрены 26 ноября 2026 года; это выборочная проверка структуры, не завершённый A0.
+All code links are pinned to the inspected commits. NIST pages were inspected on 26 November 2026; this was a sample-based structural review, not a completed A0.
 
 [p1]: https://github.com/muCommons/NistChemPy/blob/569c4ed951673ff09183df1fb19a10018e108e14/src/nistchempy/parsing/compound.py
 [p2]: https://github.com/muCommons/NistChemPy/blob/569c4ed951673ff09183df1fb19a10018e108e14/src/nistchempy/compound.py

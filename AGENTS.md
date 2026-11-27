@@ -1,5 +1,8 @@
 # Agent entry point
 
+- Use English for all repository-facing text, including code comments,
+  docstrings, documentation, fixtures, commit messages, issues, PRs and reviews.
+  Private planning conversations may use other languages.
 - Check the current branch and baseline, linked task, and approved scope.
   Read [the working documentation](docs/development/README.md),
   [the active development plan](docs/development/plan.md), and applicable
